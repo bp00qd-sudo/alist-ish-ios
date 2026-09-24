@@ -1,0 +1,80 @@
+diff --git a/cpu/cpu_darwin_cgo.go b/cpu/cpu_darwin_cgo.go
+--- a/cpu/cpu_darwin_cgo.go
++++ b/cpu/cpu_darwin_cgo.go
+@@ -1,4 +1,4 @@
+-//go:build darwin && cgo
+-// +build darwin,cgo
++//go:build darwin && cgo && !ios
++// +build darwin,cgo,!ios
+ 
+ package cpu
+diff --git a/cpu/cpu_darwin_nocgo.go b/cpu/cpu_darwin_nocgo.go
+--- a/cpu/cpu_darwin_nocgo.go
++++ b/cpu/cpu_darwin_nocgo.go
+@@ -1,4 +1,4 @@
+-//go:build darwin && !cgo
+-// +build darwin,!cgo
++//go:build (darwin && !cgo) || ios
++// +build darwin,!cgo ios
+ 
+ package cpu
+diff --git a/process/process_darwin_cgo.go b/process/process_darwin_cgo.go
+--- a/process/process_darwin_cgo.go
++++ b/process/process_darwin_cgo.go
+@@ -1,4 +1,4 @@
+-//go:build darwin && cgo
+-// +build darwin,cgo
++//go:build darwin && cgo && !ios
++// +build darwin,cgo,!ios
+ 
+ package process
+diff --git a/process/process_darwin_nocgo.go b/process/process_darwin_nocgo.go
+--- a/process/process_darwin_nocgo.go
++++ b/process/process_darwin_nocgo.go
+@@ -1,4 +1,4 @@
+-//go:build darwin && !cgo
+-// +build darwin,!cgo
++//go:build (darwin && !cgo) || ios
++// +build darwin,!cgo ios
+ 
+ package process
+diff --git a/mem/mem_darwin_cgo.go b/mem/mem_darwin_cgo.go
+--- a/mem/mem_darwin_cgo.go
++++ b/mem/mem_darwin_cgo.go
+@@ -1,4 +1,4 @@
+-//go:build darwin && cgo
+-// +build darwin,cgo
++//go:build darwin && cgo && !ios
++// +build darwin,cgo,!ios
+ 
+ package mem
+diff --git a/mem/mem_darwin_nocgo.go b/mem/mem_darwin_nocgo.go
+--- a/mem/mem_darwin_nocgo.go
++++ b/mem/mem_darwin_nocgo.go
+@@ -1,4 +1,4 @@
+-//go:build darwin && !cgo
+-// +build darwin,!cgo
++//go:build (darwin && !cgo) || ios
++// +build darwin,!cgo ios
+ 
+ package mem
+diff --git a/host/host_darwin_cgo.go b/host/host_darwin_cgo.go
+--- a/host/host_darwin_cgo.go
++++ b/host/host_darwin_cgo.go
+@@ -1,4 +1,4 @@
+-//go:build darwin && cgo
+-// +build darwin,cgo
++//go:build darwin && cgo && !ios
++// +build darwin,cgo,!ios
+ 
+ package host
+diff --git a/host/host_darwin_nocgo.go b/host/host_darwin_nocgo.go
+--- a/host/host_darwin_nocgo.go
++++ b/host/host_darwin_nocgo.go
+@@ -1,4 +1,4 @@
+-//go:build darwin && !cgo
+-// +build darwin,!cgo
++//go:build (darwin && !cgo) || ios
++// +build darwin,!cgo ios
+ 
+ package host

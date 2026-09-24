@@ -1,0 +1,67 @@
+name: Build AList iOS
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch iSH build dependencies
+        run: git submodule update --init --depth 1 deps/libapps deps/libarchive
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.x'
+          cache-dependency-path: alist/go.sum
+      - name: Install build tools
+        run: |
+          brew install meson ninja llvm lld libarchive
+          go install golang.org/x/mobile/cmd/gomobile@v0.0.0-20260821190718-4776eadac327
+          gomobile init
+      - name: Fetch pinned web UI
+        run: ./scripts/fetch-web-dist.sh
+      - name: Test AList bridge and account policy
+        working-directory: alist
+        run: go test ./iosbridge ./internal/op
+      - name: Build arm64 AList
+        run: ./scripts/build-ios.sh
+      - name: Build unsigned iSH host
+        run: |
+          xcodebuild -project iSH.xcodeproj -scheme iSH \
+            -configuration Release -sdk iphoneos -arch arm64 \
+            -derivedDataPath "$PWD/build/DerivedData" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
+      - name: Check and package app
+        run: |
+          app_path=$(find "$PWD/build/DerivedData/Build/Products/Release-iphoneos" -maxdepth 1 -name '*.app' -print -quit)
+          test -n "$app_path"
+          bundle_id=$(plutil -extract CFBundleIdentifier raw "$app_path/Info.plist")
+          test "$bundle_id" = com.bp00qd.alistish
+          executable=$(plutil -extract CFBundleExecutable raw "$app_path/Info.plist")
+          test -s "$app_path/$executable"
+          lipo -archs "$app_path/$executable" | grep -qw arm64
+          ditto -c -k --sequesterRsrc --keepParent "$app_path" "$PWD/build/AlistISH.app.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AlistISH-unsigned-arm64
+          path: build/AlistISH.app.zip
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: build-diagnostics
+          path: |
+            build/ios-driver-compatibility.txt
+            build/ios-m1cpu-why.txt
+            build/x-mobile-module.json
+            build/x-mobile-bind.json
+          if-no-files-found: ignore
