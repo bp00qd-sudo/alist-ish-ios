@@ -1,8 +1,16 @@
 package iosbridge
 
 import (
+	"encoding/json"
+	"io"
+	"net"
+	"net/http"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/alist-org/alist/v3/internal/op"
 )
 
 func TestOptionsDefaults(t *testing.T) {
@@ -47,5 +55,54 @@ func TestNilRuntimeMethods(t *testing.T) {
 	}
 	if err := r.Stop(); err != nil {
 		t.Fatalf("nil Stop should be harmless: %v", err)
+	}
+}
+
+func TestStartServesWebAndFixedAdmin(t *testing.T) {
+	probe, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	port := probe.Addr().(*net.TCPAddr).Port
+	_ = probe.Close()
+
+	dataDir := t.TempDir()
+	options, err := json.Marshal(Options{
+		DataDir: dataDir,
+		TempDir: filepath.Join(dataDir, "cache"),
+		Port: port,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := Start(string(options))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = r.Stop() }()
+
+	client := &http.Client{Timeout: 3 * time.Second}
+	response, err := client.Get(r.LocalURL() + "/ping")
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, err := io.ReadAll(response.Body)
+	_ = response.Body.Close()
+	if err != nil || response.StatusCode != http.StatusOK || string(body) != "pong" {
+		t.Fatalf("AList ping failed: status=%d body=%q error=%v", response.StatusCode, body, err)
+	}
+
+	admin, err := op.GetAdmin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if admin.Username != "admin" || admin.ValidateRawPassword("admin") != nil {
+		t.Fatal("built-in administrator must be admin/admin")
+	}
+	if !strings.Contains(r.Status(), `"lan":false`) {
+		t.Fatal("LAN access must be disabled by default")
+	}
+	if err := r.Stop(); err != nil {
+		t.Fatal(err)
 	}
 }

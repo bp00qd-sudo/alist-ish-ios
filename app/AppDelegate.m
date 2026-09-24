@@ -36,7 +36,6 @@
 @interface AppDelegate ()
 
 @property BOOL exiting;
-@property SCNetworkReachabilityRef reachability;
 
 @end
 
@@ -245,79 +244,8 @@ void SyncHostname(void) {
     return YES;
 }
 
-void NetworkReachabilityCallback(SCNetworkReachabilityRef target, SCNetworkReachabilityFlags flags, void *info) {
-    AppDelegate *self = (__bridge AppDelegate *) info;
-    [self configureDns];
-}
-
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
-    if ([NSUserDefaults.standardUserDefaults boolForKey:@"FASTLANE_SNAPSHOT"])
-        [UIView setAnimationsEnabled:NO];
-
-#if !ISH_LINUX
-    NSString *ishVersion = [NSString stringWithFormat:@"iSH %@ (%@)",
-                         [NSBundle.mainBundle objectForInfoDictionaryKey:@"CFBundleShortVersionString"],
-                         [NSBundle.mainBundle objectForInfoDictionaryKey:(NSString *) kCFBundleVersionKey]];
-    extern const char *proc_ish_version;
-    proc_ish_version = strdup(ishVersion.UTF8String);
-    // this defaults key is set when taking app store screenshots
-    extern const char *uname_hostname_override;
-    NSString *hostnameOverride = UserPreferences.shared._hostnameOverride;
-    if (@available(iOS 16.0, *)) { // Hostname obfuscation is in effect
-        hostnameOverride = hostnameOverride ? hostnameOverride : UserPreferences.shared.hostnameOverride;
-    }
-    if (hostnameOverride) {
-        uname_hostname_override = strdup(hostnameOverride.UTF8String);
-    }
-#endif
-    
-    [UserPreferences.shared observe:@[@"shouldDisableDimming"] options:NSKeyValueObservingOptionInitial
-                              owner:self usingBlock:^(typeof(self) self) {
-        dispatch_async(dispatch_get_main_queue(), ^{
-            UIApplication.sharedApplication.idleTimerDisabled = UserPreferences.shared.shouldDisableDimming;
-        });
-    }];
-    
-    // This code is IPv4 and IPv6 aware: see https://developer.apple.com/library/archive/samplecode/Reachability/Listings/ReadMe_md.html
-    struct sockaddr_in address = {
-        .sin_len = sizeof(address),
-        .sin_family = AF_INET,
-    };
-    self.reachability = SCNetworkReachabilityCreateWithAddress(kCFAllocatorDefault, (struct sockaddr *) &address);
-    SCNetworkReachabilityContext context = {
-        .info = (__bridge void *) self,
-    };
-    SCNetworkReachabilitySetCallback(self.reachability, NetworkReachabilityCallback, &context);
-    SCNetworkReachabilityScheduleWithRunLoop(self.reachability, CFRunLoopGetMain(), kCFRunLoopCommonModes);
-
-    if (self.window != nil) {
-        // For iOS <13, where the app delegate owns the window instead of the scene
-        if ([NSUserDefaults.standardUserDefaults boolForKey:@"recovery"]) {
-            UINavigationController *vc = [[UIStoryboard storyboardWithName:@"About" bundle:nil] instantiateInitialViewController];
-            AboutViewController *avc = (AboutViewController *) vc.topViewController;
-            avc.recoveryMode = YES;
-            self.window.rootViewController = vc;
-            return YES;
-        }
-        TerminalViewController *vc = (TerminalViewController *) self.window.rootViewController;
-        currentTerminalViewController = vc;
-        [vc startNewSession];
-    }
     return YES;
-}
-
-- (void)application:(UIApplication *)application didDiscardSceneSessions:(NSSet<UISceneSession *> *)sceneSessions API_AVAILABLE(ios(13.0)) {
-    for (UISceneSession *sceneSession in sceneSessions) {
-        NSString *terminalUUID = sceneSession.stateRestorationActivity.userInfo[@"TerminalUUID"];
-        [[Terminal terminalWithUUID:[[NSUUID alloc] initWithUUIDString:terminalUUID]] destroy];
-    }
-}
-
-- (void)dealloc {
-    if (self.reachability != NULL) {
-        SCNetworkReachabilityUnscheduleFromRunLoop(self.reachability, CFRunLoopGetMain(), kCFRunLoopCommonModes);
-        CFRelease(self.reachability);
-    }
 }
 
 - (void)exitApp {
