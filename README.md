@@ -8,7 +8,7 @@ App data and cache live in this app's own iOS sandbox. The bundle identifier is 
 
 ## Build
 
-GitHub Actions builds an unsigned arm64 `.app.zip` on macOS. Download the `AlistISH-unsigned-arm64` artifact from a successful workflow run, then sign it with your own Apple development identity and provisioning profile before installing it. To build locally, use a Mac with Xcode, Go 1.26 and `gomobile`:
+GitHub Actions builds an unsigned arm64 `.ipa` and `.app.zip` on macOS. Download the `AlistISH-unsigned-arm64-ipa` artifact from a successful workflow run to get the IPA. It has the standard `Payload/AlistISH.app` structure but must be signed with your Apple identity and provisioning profile before device installation. To build locally, use a Mac with Xcode, Go 1.26 and `gomobile`:
 
 ```sh
 git submodule update --init --depth 1 deps/libapps deps/libarchive

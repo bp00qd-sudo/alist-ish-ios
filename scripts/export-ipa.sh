@@ -2,14 +2,18 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-project="$repo_root/ios/AlistApp/AlistApp.xcodeproj"
-archive_path="${ARCHIVE_PATH:-$repo_root/build/Alist.xcarchive}"
-export_path="${EXPORT_PATH:-$repo_root/build/ipa}"
+project="$repo_root/iSH.xcodeproj"
+archive_path="${ARCHIVE_PATH:-$repo_root/build/AlistISH.xcarchive}"
+export_path="${EXPORT_PATH:-$repo_root/build/signed-ipa}"
 configuration="${CONFIGURATION:-Release}"
 export_options="${EXPORT_OPTIONS_PLIST:-}"
 
 if [[ ! -d "$project" ]]; then
   echo "Xcode project not found: $project" >&2
+  exit 2
+fi
+if [[ ! -d "$repo_root/build/AlistCore.xcframework" ]]; then
+  echo "Build the AList framework with scripts/build-ios.sh first." >&2
   exit 2
 fi
 if [[ -z "$export_options" || ! -f "$export_options" ]]; then
@@ -24,8 +28,9 @@ fi
 mkdir -p "$(dirname "$archive_path")" "$export_path"
 archive_args=(
   -project "$project"
-  -target Alist
+  -scheme iSH
   -sdk iphoneos
+  -destination 'generic/platform=iOS'
   -configuration "$configuration"
   -archivePath "$archive_path"
   archive
@@ -47,4 +52,4 @@ xcodebuild \
   -exportOptionsPlist "$export_options" \
   -exportPath "$export_path"
 
-echo "IPA exported to $export_path"
+echo "Signed IPA exported to $export_path"

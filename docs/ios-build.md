@@ -2,9 +2,9 @@
 
 ## Build and signing
 
-The `iSH` scheme in `iSH.xcodeproj` builds the iOS host. `scripts/build-ios.sh` produces `build/AlistCore.xcframework` from `alist/iosbridge` for `ios/arm64`; Xcode links that framework into `AlistISH.app`. Both scripts require macOS with Xcode, Go 1.26, `gomobile`, Meson, Ninja, LLVM/LLD and libarchive. The workflow installs these dependencies, downloads the pinned AList web UI, runs Go tests, builds the framework and app, and uploads an unsigned `.app.zip`.
+The `iSH` scheme in `iSH.xcodeproj` builds the iOS host. `scripts/build-ios.sh` produces `build/AlistCore.xcframework` from `alist/iosbridge` for `ios/arm64`; Xcode links that framework into `AlistISH.app`. Both scripts require macOS with Xcode, Go 1.26, `gomobile`, Meson, Ninja, LLVM/LLD and libarchive. The workflow installs these dependencies, downloads the pinned AList web UI, runs Go tests, builds the framework and app, and uploads an unsigned IPA plus an `.app.zip`.
 
-The unsigned artifact is not an IPA and cannot be installed directly. On a Mac, open `iSH.xcodeproj`, select the `iSH` target, set a development team and a bundle ID/App Group that belong to your provisioning profile, and build for a connected arm64 iPhone or iPad. Do not change the bundle ID to `app.ish.iSH`: a separate ID preserves iSH's app container. Signing may require entitlements supported by the chosen profile.
+The unsigned IPA has the correct `Payload/AlistISH.app` layout but cannot be installed directly. On a Mac, open `iSH.xcodeproj`, select the `iSH` target, set a development team and a bundle ID/App Group that belong to your provisioning profile, and build for a connected arm64 iPhone or iPad. To export a signed IPA, provide an Xcode `ExportOptions.plist` and run `EXPORT_OPTIONS_PLIST=/path/to/ExportOptions.plist DEVELOPMENT_TEAM=YOUR_TEAM_ID ./scripts/export-ipa.sh` after building the XCFramework. Do not change the bundle ID to `app.ish.iSH`: a separate ID preserves iSH's app container. Signing may require entitlements supported by the chosen profile.
 
 ## Runtime
 

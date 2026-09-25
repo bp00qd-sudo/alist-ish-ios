@@ -50,10 +50,25 @@ jobs:
           test -s "$app_path/$executable"
           lipo -archs "$app_path/$executable" | grep -qw arm64
           ditto -c -k --sequesterRsrc --keepParent "$app_path" "$PWD/build/AlistISH.app.zip"
+          ipa_path="$PWD/build/AlistISH-unsigned-arm64.ipa"
+          mkdir -p "$PWD/build/ipa/Payload"
+          ditto "$app_path" "$PWD/build/ipa/Payload/AlistISH.app"
+          (
+            cd "$PWD/build/ipa"
+            ditto -c -k --sequesterRsrc --keepParent Payload "$ipa_path"
+          )
+          test -s "$ipa_path"
+          unzip -tqq "$ipa_path"
+          unzip -Z -1 "$ipa_path" | grep -Fx 'Payload/AlistISH.app/Info.plist'
       - uses: actions/upload-artifact@v4
         with:
           name: AlistISH-unsigned-arm64
           path: build/AlistISH.app.zip
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AlistISH-unsigned-arm64-ipa
+          path: build/AlistISH-unsigned-arm64.ipa
           if-no-files-found: error
       - uses: actions/upload-artifact@v4
         if: failure()
