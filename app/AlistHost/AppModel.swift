@@ -45,6 +45,7 @@ final class AppModel: ObservableObject {
     private let monitorQueue = DispatchQueue(label: "alist.network-monitor", qos: .utility)
     private var startedAt: Date?
     private var lastCPUSample: (time: Date, seconds: Double)?
+    private var lastGoMemorySample: Date?
 
     init() {
         pathMonitor.pathUpdateHandler = { [weak self] _ in
@@ -110,6 +111,7 @@ final class AppModel: ObservableObject {
         state = .stopped
         startedAt = nil
         lastCPUSample = nil
+        lastGoMemorySample = nil
         lanEnabled = false
         lanAddress = nil
         physicalMemoryBytes = nil
@@ -134,17 +136,21 @@ final class AppModel: ObservableObject {
 
     func refreshPerformance() {
         guard state == .running else { return }
+        let now = Date()
         if let startedAt {
-            let seconds = max(0, Int(Date().timeIntervalSince(startedAt)))
+            let seconds = max(0, Int(now.timeIntervalSince(startedAt)))
             uptime = String(format: "%02d:%02d:%02d", seconds / 3600, (seconds / 60) % 60, seconds % 60)
         }
+        if lastGoMemorySample.map({ now.timeIntervalSince($0) >= 5 }) ?? true {
+            lastGoMemorySample = now
 #if canImport(AlistCore)
-        if let json = runtime?.memoryStats(), let data = json.data(using: .utf8),
-           let values = try? JSONSerialization.jsonObject(with: data) as? [String: NSNumber] {
-            goAllocatedBytes = values["alloc"]?.uint64Value
-            goSystemBytes = values["sys"]?.uint64Value
-        }
+            if let json = runtime?.memoryStats(), let data = json.data(using: .utf8),
+               let values = try? JSONSerialization.jsonObject(with: data) as? [String: NSNumber] {
+                goAllocatedBytes = values["alloc"]?.uint64Value
+                goSystemBytes = values["sys"]?.uint64Value
+            }
 #endif
+        }
         var info = task_vm_info_data_t()
         var count = mach_msg_type_number_t(MemoryLayout<task_vm_info_data_t>.size / MemoryLayout<integer_t>.size)
         let result = withUnsafeMutablePointer(to: &info) { pointer in
@@ -160,13 +166,19 @@ final class AppModel: ObservableObject {
         if getrusage(RUSAGE_SELF, &usage) == 0 {
             let seconds = Double(usage.ru_utime.tv_sec + usage.ru_stime.tv_sec)
                 + Double(usage.ru_utime.tv_usec + usage.ru_stime.tv_usec) / 1_000_000
-            let now = Date()
+            let cpuSampleTime = Date()
             if let lastCPUSample {
-                let elapsed = now.timeIntervalSince(lastCPUSample.time)
+                let elapsed = cpuSampleTime.timeIntervalSince(lastCPUSample.time)
                 if elapsed > 0 { cpuPercent = max(0, (seconds - lastCPUSample.seconds) / elapsed * 100) }
             }
-            lastCPUSample = (now, seconds)
+            lastCPUSample = (cpuSampleTime, seconds)
         }
+    }
+
+    func resumePerformanceSampling() {
+        lastCPUSample = nil
+        cpuPercent = nil
+        refreshPerformance()
     }
 
     func recentLogs() throws -> String {

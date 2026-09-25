@@ -1,11 +1,12 @@
+import Combine
 import SwiftUI
 import UIKit
 
 struct ContentView: View {
     @EnvironmentObject private var model: AppModel
-    @Environment(\.scenePhase) private var scenePhase
     @State private var selectedTab: Tab = .status
     @State private var showingSettings = false
+    private let performanceTicker = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     private enum Tab: Hashable { case status, web, background }
 
@@ -61,15 +62,13 @@ struct ContentView: View {
             Text(model.errorText ?? "")
         }
         .onAppear { model.start() }
-        .onChange(of: scenePhase) { _, phase in
-            if phase == .active { model.keepAlive.refresh() }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+            model.keepAlive.refresh()
+            model.resumePerformanceSampling()
         }
-        .task(id: scenePhase) {
-            guard scenePhase == .active else { return }
-            while !Task.isCancelled {
-                model.refreshPerformance()
-                try? await Task.sleep(nanoseconds: 5_000_000_000)
-            }
+        .onReceive(performanceTicker) { _ in
+            guard UIApplication.shared.applicationState == .active else { return }
+            model.refreshPerformance()
         }
     }
 }
@@ -80,8 +79,16 @@ private struct StatusView: View {
 
     var body: some View {
         List {
-            Section("服务") {
+            Section("概览") {
                 LabeledContent("运行状态", value: model.state.label)
+                LabeledContent("运行时间", value: model.uptime)
+                LabeledContent("CPU 占用", value: model.cpuPercent.map { String(format: "%.1f%%", $0) }
+                    ?? (model.state == .running ? "采样中" : "--"))
+                LabeledContent("管理员账号", value: "admin")
+                LabeledContent("管理员密码", value: "admin")
+            }
+
+            Section("服务") {
                 Button {
                     if model.state == .running { model.stop() } else { model.start() }
                 } label: {
@@ -106,9 +113,7 @@ private struct StatusView: View {
                 }
             }
 
-            Section("性能") {
-                LabeledContent("运行时间", value: model.uptime)
-                LabeledContent("CPU", value: model.cpuPercent.map { String(format: "%.1f%%", $0) } ?? "--")
+            Section("内存") {
                 LabeledContent("物理内存", value: size(model.physicalMemoryBytes))
                 LabeledContent("Go 已分配", value: size(model.goAllocatedBytes))
                 LabeledContent("Go 系统内存", value: size(model.goSystemBytes))
